@@ -16,9 +16,9 @@ double MaxAbsDiff( int, int, double *, int, double *, int );
 /* RandomMatrix overwrites a matrix with random values */
 void RandomMatrix( int, int, double *, int );
 
-/* Prototype for BLAS matrix-matrix multiplication routine (which we will 
+/* Prototype for BLAS matrix-matrix multiplication routine (which we will
    use for the reference implementation */
-void dgemm_( char *, char *,                 // transA, transB
+void dgemm_( char *, char *,             // transA, transB
 	     int *, int *, int *,            // m, n, k
 	     double *, double *, int *,      // alpha, A, ldA
 	               double *, int *,      //        B, ldB
@@ -26,7 +26,7 @@ void dgemm_( char *, char *,                 // transA, transB
 
 /* Various constants that control what gets timed */
 
-/* My_Gemm is a common interface to all the implementations we will 
+/* My_Gemm is a common interface to all the implementations we will
    develop so we don't have to keep rewriting this driver routine. */
 void MyGemm( int, int, int, double *, int, double *, int, double *, int );
 
@@ -41,29 +41,41 @@ int main(int argc, char *argv[])
 
   double
     d_one = 1.0,
-    dtime, dtime_best, 
+    dtime, dtime_best,
     diff, maxdiff = 0.0, gflops;
 
   double
     *A, *B, *C, *Cold, *Cref;
 
+  if (argc != 5)
+  {
+      printf("Usage: gemm.exe nrepeats first last inc");
+      exit(1);
+  }
+
+
+
   /* Every time trial is repeated "repeat" times and the fastest run is recorded */
-  printf( "%% number of repeats:" );
-  scanf( "%d", &nrepeats );
+  printf( "%% number of repeats:\n" );
+  nrepeats = atoi(argv[1]);
+  //scanf("%d", &nrepeats);
   printf( "%% %d\n", nrepeats );
 
   /* Timing trials for matrix sizes m=n=k=first to last in increments
      of inc will be performed.  (Actually, we are going to go from
-     largest to smallest since this seems to give more reliable 
+     largest to smallest since this seems to give more reliable
      timings.  */
-  printf( "%% enter first, last, inc:" );
-  scanf( "%d%d%d", &first, &last, &inc );
+  printf( "%% enter first, last, inc:\n" );
+  first = atoi(argv[2]);
+  last = atoi(argv[3]);
+  inc = atoi(argv[4]);
+  //scanf( "%d%d%d", &first, &last, &inc );
 
   /* Adjust first and last so that they are multiples of inc */
   last = ( last / inc ) * inc;
   first = ( first / inc ) * inc;
   first = ( first == 0 ? inc : first );
-  
+
   printf( "%% %d %d %d \n", first, last, inc );
 
   printf( "data = [\n" );
@@ -86,9 +98,9 @@ int main(int argc, char *argv[])
        Now, we will compute C = A B + C with via routine MyGemm
        and also with a reference implementation.  Therefore, we will
        utilize two more arrays:
- 
+
        Cold will be the address where the original matrix C is
-       stored.  
+       stored.
 
        Cref will be the address where the result of computing C = A B
        + C computed with the reference implementation will be stored.
@@ -108,18 +120,18 @@ int main(int argc, char *argv[])
 
     /* Generate random matrix Cold */
     RandomMatrix( m, n, Cold, ldC );
-    
+
     /* Time reference implementation provided by the BLAS library
        routine dgemm (double precision general matrix-matrix
        multiplicationn */
     for ( irep=0; irep<nrepeats; irep++ ){
-      
+
       /* Copy matrix Cold to Cref */
       memcpy( Cref, Cold, ldC * n * sizeof( double ) );
-    
+
       /* start clock */
       dtime = FLA_Clock();
-    
+
       /* Compute Cref = A B + Cref */
       dgemm_( "No transpose", "No transpose",
 	      &m, &n, &k,
@@ -131,12 +143,12 @@ int main(int argc, char *argv[])
       dtime = FLA_Clock() - dtime;
 
       /* record the best time so far */
-      if ( irep == 0 ) 
+      if ( irep == 0 )
 	dtime_best = dtime;
       else
 	dtime_best = ( dtime < dtime_best ? dtime : dtime_best );
     }
-  
+
     printf( " %5d %8.4le %8.4le   ", n, dtime_best, gflops/dtime_best );
     fflush( stdout );  // We flush the output buffer because otherwise
 		       // it may throw the timings of a next
@@ -147,17 +159,17 @@ int main(int argc, char *argv[])
     for ( irep=0; irep<nrepeats; irep++ ){
       /* Copy vector Cold to C */
       memcpy( C, Cold, ldC * n * sizeof( double ) );
-    
+
       /* start clock */
       dtime = FLA_Clock();
-    
+
       /* Compute C = A B + C */
       MyGemm( m, n, k, A, ldA, B, ldB, C, ldC );
 
       /* stop clock */
       dtime = FLA_Clock() - dtime;
-    
-      if ( irep == 0 ) 
+
+      if ( irep == 0 )
 	dtime_best = dtime;
       else
 	dtime_best = ( dtime < dtime_best ? dtime : dtime_best );
@@ -165,7 +177,7 @@ int main(int argc, char *argv[])
 
     diff = MaxAbsDiff( m, n, C, ldC, Cref, ldC );
     maxdiff = ( diff > maxdiff ? diff : maxdiff );
-    
+
     printf( " %8.4le %8.4le %8.4le\n", dtime_best, gflops/dtime_best, diff  );
     fflush( stdout );  // We flush the output buffer because otherwise
 		       // it may throw the timings of a next
@@ -182,6 +194,6 @@ int main(int argc, char *argv[])
   }
   printf( "];\n\n" );
   printf( "%% Maximum difference between reference and your implementation: %le.\n", maxdiff );
-  
+
   exit( 0 );
 }
